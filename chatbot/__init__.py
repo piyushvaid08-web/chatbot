@@ -1,0 +1,1 @@
+"""Chatbot package: file-aware, human-sounding AI assistant."""

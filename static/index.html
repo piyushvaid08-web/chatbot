@@ -1,40 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nova — Your File-Aware Assistant</title>
+  <title>Nova — Personal General AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0f1220;
-      --panel: #171b2e;
-      --panel-2: #1e2340;
-      --border: #2a3052;
-      --text: #e8eaf6;
-      --muted: #9aa1c4;
-      --accent: #7c6cff;
-      --accent-2: #4ecdc4;
-      --user: #2a3160;
-      --bot: #1e2340;
-      --danger: #ff6b6b;
-      --ok: #5be08f;
+      --bg-color: #0b0c10;
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-hover: rgba(255, 255, 255, 0.08);
+      --text-main: #f8f9fa;
+      --text-muted: #a0aab2;
+      --accent-1: #00f2fe;
+      --accent-2: #4facfe;
+      --accent-gradient: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      --user-msg: rgba(79, 172, 254, 0.15);
+      --bot-msg: rgba(255, 255, 255, 0.05);
+      --danger: #ff4b4b;
+      --ok: #20e253;
+      --font-family: 'Outfit', system-ui, sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      font-family: var(--font-family);
+      background-color: var(--bg-color);
+      color: var(--text-main);
       height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      /* Background Mesh Gradient Simulation */
+      background-image: 
+        radial-gradient(circle at 15% 50%, rgba(79, 172, 254, 0.15), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(250, 112, 154, 0.15), transparent 25%);
+      background-attachment: fixed;
     }
 
     /* ---- header ---- */
@@ -42,37 +47,55 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 20px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      background: rgba(11, 12, 16, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--glass-border);
+      z-index: 10;
     }
 
     header h1 {
-      font-size: 18px;
+      font-size: 22px;
       font-weight: 600;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     header h1 span {
-      color: var(--accent);
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .status {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: var(--muted);
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--glass-bg);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--glass-border);
     }
 
     .dot {
-      width: 9px;
-      height: 9px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+      transition: all 0.3s ease;
     }
 
     .dot.on {
       background: var(--ok);
+      box-shadow: 0 0 8px var(--ok);
     }
 
     /* ---- layout ---- */
@@ -80,17 +103,22 @@
       flex: 1;
       display: flex;
       min-height: 0;
+      position: relative;
+      z-index: 1;
     }
 
     #sidebar {
-      width: 260px;
-      background: var(--panel);
-      border-right: 1px solid var(--border);
-      padding: 16px;
+      width: 280px;
+      background: rgba(11, 12, 16, 0.4);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid var(--glass-border);
+      padding: 24px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 20px;
       overflow-y: auto;
+      box-shadow: 5px 0 30px rgba(0,0,0,0.2);
     }
 
     #chat {
@@ -98,47 +126,49 @@
       display: flex;
       flex-direction: column;
       min-width: 0;
+      background: rgba(0,0,0,0.2);
     }
 
     /* ---- sidebar ---- */
     #sidebar h2 {
-      font-size: 13px;
+      font-size: 14px;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      font-weight: 600;
     }
 
     #drop {
-      border: 2px dashed var(--border);
-      border-radius: 10px;
-      padding: 18px 12px;
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 24px 16px;
       text-align: center;
-      font-size: 13px;
-      color: var(--muted);
+      font-size: 14px;
+      color: var(--text-muted);
       cursor: pointer;
-      transition: border-color .15s, background .15s;
+      transition: all 0.3s ease;
+      background: var(--glass-bg);
     }
 
-    #drop:hover,
-    #drop.drag {
-      border-color: var(--accent);
-      background: var(--panel-2);
+    #drop:hover, #drop.drag {
+      border-color: var(--accent-2);
+      background: rgba(79, 172, 254, 0.05);
+      transform: translateY(-2px);
     }
 
-    #drop input {
-      display: none;
-    }
+    #drop input { display: none; }
 
     #drop strong {
       display: block;
-      color: var(--text);
-      margin-bottom: 4px;
+      color: var(--text-main);
+      margin-bottom: 6px;
+      font-weight: 500;
     }
 
     #file-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 10px;
       font-size: 13px;
     }
 
@@ -146,57 +176,100 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      background: var(--panel-2);
+      gap: 10px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
       border-radius: 8px;
-      padding: 7px 10px;
+      padding: 10px 14px;
+      transition: transform 0.2s;
+    }
+    .file-item:hover {
+      transform: translateX(4px);
+      background: var(--glass-hover);
     }
 
     .file-item .name {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      font-weight: 400;
     }
 
     .file-item .ext {
       flex-shrink: 0;
-      font-size: 10px;
-      color: var(--accent-2);
-      border: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--bg-color);
+      background: var(--accent-gradient);
       border-radius: 4px;
-      padding: 1px 5px;
-    }
-
-    #empty-files {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
+      padding: 2px 6px;
     }
 
     .hint {
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.5;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .hint code {
+      color: var(--accent-1);
+      background: rgba(0, 242, 254, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
     }
 
-    .hint code {
-      color: var(--accent-2);
+    #reset {
+      margin-top: auto;
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: var(--font-family);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    #reset:hover {
+      background: var(--danger);
+      color: white;
+      box-shadow: 0 4px 15px rgba(255, 75, 75, 0.3);
     }
 
     /* ---- messages ---- */
     #messages {
       flex: 1;
       overflow-y: auto;
-      padding: 20px 24px;
+      padding: 30px 40px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 24px;
+      scroll-behavior: smooth;
+    }
+
+    /* Custom Scrollbar */
+    #messages::-webkit-scrollbar, #sidebar::-webkit-scrollbar {
+      width: 6px;
+    }
+    #messages::-webkit-scrollbar-track, #sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #messages::-webkit-scrollbar-thumb, #sidebar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
     }
 
     .msg {
       display: flex;
-      gap: 10px;
-      max-width: 78%;
+      gap: 16px;
+      max-width: 85%;
+      animation: fadeIn 0.4s ease forwards;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    @keyframes fadeIn {
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .msg.user {
@@ -205,173 +278,183 @@
     }
 
     .bubble {
-      padding: 11px 14px;
-      border-radius: 14px;
-      font-size: 14.5px;
-      line-height: 1.55;
+      padding: 14px 20px;
+      border-radius: 18px;
+      font-size: 15px;
+      line-height: 1.6;
       white-space: pre-wrap;
       word-wrap: break-word;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      letter-spacing: 0.2px;
     }
 
     .msg.user .bubble {
-      background: var(--user);
+      background: var(--user-msg);
+      border: 1px solid rgba(79, 172, 254, 0.3);
       border-top-right-radius: 4px;
+      color: #fff;
     }
 
     .msg.bot .bubble {
-      background: var(--bot);
-      border: 1px solid var(--border);
+      background: var(--bot-msg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       border-top-left-radius: 4px;
     }
 
     .avatar {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 15px;
+      font-weight: 600;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
 
     .msg.user .avatar {
-      background: var(--accent);
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
     }
 
     .msg.bot .avatar {
-      background: var(--accent-2);
-      color: #0f1220;
-    }
-
-    .typing {
-      color: var(--muted);
-      font-style: italic;
-      font-size: 13.5px;
+      background: var(--accent-gradient);
+      color: #000;
     }
 
     .cursor {
       display: inline-block;
       width: 8px;
-      background: var(--accent-2);
+      height: 15px;
+      background: var(--accent-1);
+      margin-left: 4px;
+      vertical-align: middle;
       animation: blink 1s infinite;
     }
-
-    @keyframes blink {
-      50% {
-        opacity: 0;
-      }
-    }
+    @keyframes blink { 50% { opacity: 0; } }
 
     /* ---- input ---- */
     #input-bar {
-      border-top: 1px solid var(--border);
-      padding: 14px 20px;
-      background: var(--panel);
+      border-top: 1px solid var(--glass-border);
+      padding: 20px 40px;
+      background: rgba(11, 12, 16, 0.7);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
       display: flex;
-      gap: 10px;
+      gap: 16px;
       align-items: center;
     }
 
     #upload-plus {
-      background: transparent;
-      border: none;
-      color: var(--muted);
-      padding: 8px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--text-muted);
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: all 0.3s;
     }
-
     #upload-plus:hover {
-      background: var(--panel-2);
-      color: var(--text);
+      background: var(--accent-gradient);
+      color: #000;
+      border-color: transparent;
+      transform: rotate(90deg);
     }
 
     #input {
       flex: 1;
-      background: var(--panel-2);
-      border: 1px solid var(--border);
-      color: var(--text);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
       border-radius: 24px;
-      padding: 12px 18px;
-      font-size: 14.5px;
+      padding: 16px 24px;
+      font-size: 15px;
+      font-family: var(--font-family);
       outline: none;
+      transition: all 0.3s;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
     }
-
     #input:focus {
-      border-color: var(--accent);
+      border-color: var(--accent-2);
+      background: rgba(255,255,255,0.06);
+      box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.15);
+    }
+    #input::placeholder {
+      color: rgba(255,255,255,0.4);
     }
 
-    button {
-      background: var(--accent);
-      color: white;
+    #send {
+      background: var(--accent-gradient);
+      color: #000;
       border: none;
       border-radius: 24px;
-      padding: 12px 22px;
-      font-size: 14px;
+      padding: 0 28px;
+      height: 52px;
+      font-size: 15px;
       font-weight: 600;
+      font-family: var(--font-family);
       cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
     }
-
-    button:hover {
-      filter: brightness(1.1);
+    #send:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
     }
-
-    button:disabled {
-      opacity: .5;
-      cursor: default;
+    #send:active {
+      transform: translateY(1px);
     }
-
-    #reset {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 10px 14px;
-      font-size: 12px;
-      border-radius: 10px;
+    #send:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
     }
   </style>
 </head>
 
 <body>
   <header>
-    <h1>Nova <span>·</span> file-aware assistant</h1>
-    <div class="status"><span class="dot" id="dot"></span><span id="status-text">checking…</span></div>
+    <h1>Nova <span>·</span> Personal General AI</h1>
+    <div class="status"><span class="dot" id="dot"></span><span id="status-text">Connecting...</span></div>
   </header>
 
   <div class="layout">
     <aside id="sidebar">
-      <h2>Documents</h2>
+      <h2>Context Files</h2>
       <div id="drop">
         <input type="file" id="file-input" multiple
           accept=".xls,.xlsx,.csv,.txt,.md,.log,.pdf,.docx,.png,.jpg,.jpeg,.gif,.webp" />
-        <strong>Drop files here</strong>
-        or click to browse
+        <strong>Add Knowledge</strong>
+        Drop files to augment my intelligence
       </div>
       <div id="file-list"></div>
       <div id="empty-files" class="hint">
-        Nothing loaded yet.<br />Upload Excel, CSV, PDF, Word, images, or text files, then ask questions about them —
-        Nova answers from your files.
+        No specific files loaded.<br /><br />
+        I am currently operating using my vast general world knowledge. You can optionally drop documents here to provide me with custom context.
       </div>
-      <div class="hint">Also works from the CLI: <code>python main.py data/</code></div>
-      <button id="reset" title="Forget all documents and conversation">Reset memory</button>
+      <button id="reset" title="Forget all documents and conversation">Reset AI Memory</button>
     </aside>
 
     <main id="chat">
       <div id="messages"></div>
       <div id="input-bar">
         <button id="upload-plus" title="Upload files" aria-label="Upload files">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>
-        <input id="input" type="text" placeholder="Ask me anything about your files…" autocomplete="off" />
+        <input id="input" type="text" placeholder="Ask me absolutely anything..." autocomplete="off" />
         <button id="send">Send</button>
       </div>
     </main>
@@ -389,7 +472,7 @@
         const r = await fetch("/api/status");
         const s = await r.json();
         $("dot").classList.toggle("on", s.connected);
-        $("status-text").textContent = s.connected ? "AI connected" : "no API key set";
+        $("status-text").textContent = s.connected ? "AI Online" : "Disconnected (No API Key)";
         renderFiles(s.files);
       } catch { /* server starting */ }
     }
@@ -417,7 +500,7 @@
       const r = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await r.json();
       let note = "";
-      if (data.loaded.length) note = `📎 Loaded: ${data.loaded.join(", ")}`;
+      if (data.loaded.length) note = `📎 Augmented knowledge base with: ${data.loaded.join(", ")}`;
       if (data.errors.length) note += (note ? "\n" : "") + "⚠️ " + data.errors.join("\n");
       if (note) addMsg(note, "bot");
       refreshStatus();
@@ -437,7 +520,7 @@
     $("reset").addEventListener("click", async () => {
       await fetch("/api/reset", { method: "POST" });
       msgBox.innerHTML = "";
-      addMsg("Memory cleared — all documents and the conversation are forgotten.", "bot");
+      addMsg("Memory wiped. My context and conversation history have been reset.", "bot");
       refreshStatus();
     });
 
@@ -445,7 +528,7 @@
     function addMsg(text, who, streaming = false) {
       const wrap = document.createElement("div");
       wrap.className = `msg ${who}`;
-      wrap.innerHTML = `<div class="avatar">${who === "user" ? "You" : "N"}</div><div class="bubble"></div>`;
+      wrap.innerHTML = `<div class="avatar">${who === "user" ? "You" : "AI"}</div><div class="bubble"></div>`;
       const bubble = wrap.querySelector(".bubble");
       bubble.textContent = text;
       if (streaming) {
@@ -463,7 +546,7 @@
       if (!text || sendBtn.disabled) return;
       input.value = "";
       addMsg(text, "user");
-      const bubble = addMsg("Nova is typing", "bot", true);
+      const bubble = addMsg("Nova is analyzing", "bot", true);
 
       try {
         const resp = await fetch("/api/chat", {
@@ -492,7 +575,7 @@
           }
         }
       } catch (e) {
-        bubble.textContent = "⚠️ Could not reach the server: " + e.message;
+        bubble.textContent = "⚠️ Connection interrupted: " + e.message;
       }
     }
 
@@ -500,9 +583,8 @@
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
 
     /* welcome message */
-    addMsg("Hi! I'm Nova 👋 — a friendly assistant that reads your files. Drop an Excel sheet, CSV, PDF, or Word doc into the sidebar and ask me anything about it.", "bot");
+    addMsg("Greetings! I am Nova, your personal AI. With access to vast general knowledge, I can assist you with almost anything. Feel free to ask me questions, or drop files in the sidebar to add custom context to my intelligence.", "bot");
     refreshStatus();
   </script>
 </body>
-
 </html>

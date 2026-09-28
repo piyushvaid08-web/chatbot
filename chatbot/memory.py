@@ -22,6 +22,11 @@ _EMBEDDINGS_OFF = EMBEDDING_MODEL.strip().lower() in {"", "off", "none", "disabl
 
 _WORD_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
+# Errors that mean the provider genuinely has no embedding endpoint — only
+# these permanently disable embeddings. Transient failures (timeouts, 429s,
+# dropped connections) must not, or retrieval would silently degrade forever.
+_PERMANENT_EMBED_ERRORS = ("404", "does not exist", "not supported", "unknown model", "invalid model", "no endpoint")
+
 
 def _tokenize(text: str) -> List[str]:
     return [w.lower() for w in _WORD_RE.findall(text)]
@@ -99,9 +104,10 @@ class KnowledgeBase:
                 for chunk, item in zip(chunks[i : i + 100], resp.data):
                     chunk.embedding = item.embedding
         except Exception as exc:
-            # Embeddings are an enhancement; keyword search still works.
-            # If the embedding endpoint is not available, fall back to keyword search.
-            if self.embeddings_enabled:
+            # Embeddings are an enhancement; keyword search still works. Only a
+            # permanent provider-side refusal disables them for good — a flaky
+            # network or rate limit should not degrade every future search.
+            if any(marker in str(exc).lower() for marker in _PERMANENT_EMBED_ERRORS):
                 self.embeddings_enabled = False
             for chunk in chunks:
                 chunk.embedding = None
@@ -114,17 +120,15 @@ class KnowledgeBase:
         query = query.strip()
         if not query:
             return []
-        try:
-            results = self._embedding_search(query, top_k)
-        except Exception:
-            results = self._keyword_search(query, top_k)
-        if not results:
-            results = self._keyword_search(query, top_k)
-        return results
+        if self.embeddings_enabled:
+            try:
+                return self._embedding_search(query, top_k)
+            except Exception:
+                # Embedding endpoint failed for this query — fall back to keywords.
+                pass
+        return self._keyword_search(query, top_k)
 
     def _embedding_search(self, query: str, top_k: int) -> List[Tuple[str, str, float]]:
-        if not self.embeddings_enabled:
-            return []
         resp = self.client.embeddings.create(model=self.embedding_model, input=[query])
         q_vec = resp.data[0].embedding
         scored = []

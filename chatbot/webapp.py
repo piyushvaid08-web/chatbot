@@ -30,12 +30,13 @@ def create_app(chatbot: ChatBot | None = None) -> FastAPI:
     @app.get("/api/status")
     def status():
         connected = bot.client is not None
+        err = getattr(bot, '_client_error', None)
         return {
             "name": ASSISTANT_NAME,
             "connected": connected,
             "files": bot.kb.sources,
             "chunks": len(bot.kb.chunks),
-            "error": getattr(bot, '_client_error', None),
+            "error": str(err) if err else None,
         }
 
     @app.get("/api/files")
@@ -52,18 +53,26 @@ def create_app(chatbot: ChatBot | None = None) -> FastAPI:
             if ext not in SUPPORTED_EXTENSIONS:
                 errors.append(f"{up.filename}: unsupported type (need one of {', '.join(sorted(SUPPORTED_EXTENSIONS))})")
                 continue
-            safe_name = f"{uuid.uuid4().hex[:8]}_{Path(up.filename).name}"
+            # up.filename can be None for some clients; Path(None) would raise.
+            original_name = up.filename or "upload"
+            safe_name = f"{uuid.uuid4().hex[:8]}_{Path(original_name).name}"
             dest = os.path.join(UPLOAD_DIR, safe_name)
             with open(dest, "wb") as out:
                 out.write(await up.read())
+            await up.close()
             try:
                 from .loader import load_file
 
                 docs = load_file(dest)
-                # Keep the user's original filename as the source label.
-                docs = [(up.filename or os.path.basename(dest), text) for _, text in docs]
-                bot.kb.add_documents(docs)
-                for source, _text in docs:
+                # Keep the user's original filename as the source label, preserving sheet/page info.
+                safe_name_base = os.path.basename(dest)
+                renamed_docs = []
+                for src, text in docs:
+                    new_src = src.replace(safe_name_base, original_name)
+                    renamed_docs.append((new_src, text))
+                
+                bot.kb.add_documents(renamed_docs)
+                for source, _text in renamed_docs:
                     if source not in loaded:
                         loaded.append(source)
             except Exception as exc:
@@ -78,7 +87,7 @@ def create_app(chatbot: ChatBot | None = None) -> FastAPI:
         if not message:
             raise HTTPException(status_code=400, detail="Message is required.")
 
-        async def event_stream():
+        def event_stream():
             yield _sse({"role": "assistant", "content": ""})
             try:
                 for piece in bot.answer(message, stream=True):

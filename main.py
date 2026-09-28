@@ -23,15 +23,7 @@ def run_cli(paths) -> None:
     for d in (DATA_DIR, UPLOAD_DIR):
         if os.path.isdir(d) and d not in docs_to_load:
             docs_to_load.append(d)
-    if docs_to_load:
-        try:
-            sources = bot.load_files(docs_to_load)
-            if sources:
-                print(f"Loaded {len(sources)} source(s):")
-                for s in sources:
-                    print(f"   - {s}")
-        except Exception as exc:
-            print(f"Could not load files: {exc}")
+    _load_startup_files(bot, docs_to_load)
 
     print()
     print("========================================")
@@ -75,19 +67,38 @@ def run_web(port: int, paths) -> None:
 
     bot = ChatBot()
     loadable = [p for p in paths if os.path.exists(p)]
-    if loadable:
-        try:
-            sources = bot.load_files(loadable)
-            if sources:
-                print(f"Pre-loaded {len(sources)} source(s).")
-        except Exception as exc:
-            print(f"Could not pre-load files: {exc}")
+    for d in (DATA_DIR, UPLOAD_DIR):
+        if os.path.isdir(d) and d not in loadable:
+            loadable.append(d)
+    _load_startup_files(bot, loadable, quiet=True)
 
     import uvicorn
 
     app = create_app(bot)
     print(f"\nNova is running - open http://localhost:{port} in your browser")
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+
+def _load_startup_files(bot, paths, quiet: bool = False) -> None:
+    """Load startup documents, skipping images (API-billed and useless to
+    pre-index) and reporting failures without killing the app."""
+    from chatbot.config import IMAGE_EXTENSIONS
+
+    filtered = []
+    for p in paths:
+        if os.path.isfile(p) and os.path.splitext(p)[1].lower() in IMAGE_EXTENSIONS:
+            continue
+        filtered.append(p)
+    if not filtered:
+        return
+    try:
+        sources = bot.load_files(filtered)
+        if sources and not quiet:
+            print(f"Loaded {len(sources)} source(s):")
+            for s in sources:
+                print(f"   - {s}")
+    except Exception as exc:
+        print(f"Could not load files: {exc}")
 
 
 def main() -> None:

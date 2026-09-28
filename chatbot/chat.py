@@ -23,30 +23,20 @@ from .config import (
 from .loader import RawDocument
 from .memory import KnowledgeBase
 
-SYSTEM_PROMPT = f"""You are {ASSISTANT_NAME}, an AI assistant that answers questions about the user's uploaded documents.
+SYSTEM_PROMPT = f"""You are {ASSISTANT_NAME}, a personal AI assistant possessing vast general knowledge about the world. You are exceptionally smart, helpful, and versatile.
 
-Answering from documents (most important):
-- Relevant excerpts are given below each user message, labelled [Source: ...].
-  Base your answer on them.
-- Quote figures exactly. Double-check numbers against the excerpts before
-  answering. Never invent data.
-- If the question names a specific sheet, section or period (e.g. "Q1", "page
-  2"), use ONLY the rows from that scope — do not pull in other sheets.
-- For calculations (totals, averages, counts, highest/lowest), work through
-  them step by step, show the numbers you added, and state the final result
-  clearly. Re-check your arithmetic before answering.
-- If you use a document, mention where it came from, e.g. "according to
-  sales.xlsx [Sheet: Q1]" or "on page 3 of guide.pdf".
-- If the excerpts don't contain the answer, say you don't have that
-  information instead of guessing.
+General Knowledge:
+- Answer any question the user has using your expansive knowledge base.
+- Be highly informative, yet concise.
+
+Document Analysis (if excerpts are provided):
+- Base your answers on the provided excerpts when the question relates to them.
+- Quote figures exactly. Double-check numbers against the excerpts before answering.
+- Mention where data came from, e.g. "according to sales.xlsx [Sheet: Q1]".
 
 Tone:
-- Be warm and conversational, like a smart friend: use contractions and vary
-  your sentence structure.
-- Match the user's language (Spanish, Hindi, French, etc.).
-- Be concise: answer the question directly first, then add helpful detail.
-- If the user's question is casual (greetings, small talk, opinions), just chat
-  naturally — no need to dig into documents."""
+- Be warm and conversational, like a smart friend.
+- Match the user's language (Spanish, Hindi, French, etc.)."""
 
 
 class ChatBot:
@@ -59,8 +49,7 @@ class ChatBot:
         self.api_key = api_key
         self.model = model
         self.client = None
-        self.kb = KnowledgeBase()
-        self._client_error = None
+        self._client_error: Optional[Exception] = None
         if api_key:
             try:
                 self.client = OpenAI(
@@ -68,12 +57,18 @@ class ChatBot:
                     base_url=base_url,
                     timeout=20.0,
                     max_retries=1,
-                    default_headers={"OpenAI-Beta": "embeddings=2"},
                 )
             except Exception as exc:
                 # Client creation failed (e.g. SSL, DNS) — stay offline
                 self._client_error = exc
                 self.client = None
+        else:
+            self._client_error = RuntimeError(
+                "OPENAI_API_KEY is not set (add it to .env and restart)."
+            )
+        # Pass the client so document chunks actually get embedded; otherwise
+        # the knowledge base silently runs in keyword-only mode forever.
+        self.kb = KnowledgeBase(client=self.client)
         self.history: List[Dict[str, str]] = []
 
     # -- documents --------------------------------------------------------------
@@ -110,23 +105,25 @@ class ChatBot:
         return self._answer_plain(user_message)
 
     def _no_key_message(self) -> str:
-        if hasattr(self, '_client_error') and self._client_error:
+        if isinstance(self._client_error, RuntimeError):
             return (
-                f"I can't reach my AI brain — the connection failed: {self._client_error}. "
-                f"Check your network and try again."
+                "I don't have my brain connected yet — no OPENAI_API_KEY found in .env. "
+                "Drop your key into a .env file (see .env.example) and restart me. "
+                f"In the meantime, I've loaded {len(self.kb.chunks)} chunks from your files "
+                "and can still search them once the key is set."
             )
-        return (
-            f"I don't have my brain connected yet — no OPENAI_API_KEY found in .env. "
-            f"Drop your key into a .env file (see .env.example) and restart me. "
-            f"In the meantime, I've loaded {len(self.kb.chunks)} chunks from your files "
-            f"and can still answer from them once the key is set."
-        )
+        if self._client_error:
+            return (
+                "I can't reach my AI brain — the connection failed: "
+                f"{self._client_error}. Check your network and try again."
+            )
+        return "My AI brain is unavailable right now. Please try again."
 
     def _build_messages(self, user_message: str):
         context = self._build_context(user_message)
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
         messages.extend(self.history[-MAX_HISTORY * 2 :])
-        messages.append({"role": "user", "content": context + "\n\n" + user_message})
+        messages.append({"role": "user", "content": context + user_message})
         return messages
 
     def _answer_plain(self, user_message: str) -> str:
@@ -142,11 +139,11 @@ class ChatBot:
             )
             reply = _content_text(response.choices[0].message.content)
         except Exception as exc:  # network error, bad key, over-quota...
+            self._client_error = exc
             reply = (
                 f"Sorry, I hit a snag talking to my brain: {exc}. "
-                f"Check OPENAI_API_KEY in your .env file and try again."
+                "Check OPENAI_API_KEY in your .env file and try again."
             )
-            self._client_error = exc
         self.history.append({"role": "user", "content": user_message})
         self.history.append({"role": "assistant", "content": reply})
         return reply
@@ -167,19 +164,26 @@ class ChatBot:
             self._client_error = exc
             yield (
                 f"Sorry, I hit a snag talking to my brain: {exc}. "
-                f"Check OPENAI_API_KEY in your .env file and try again."
+                "Check OPENAI_API_KEY in your .env file and try again."
             )
             return
 
         parts: List[str] = []
-        for event in response:
-            if not event.choices:
-                continue
-            delta = event.choices[0].delta
-            piece = (delta or {}).get("content") if isinstance(delta, dict) else (delta.content if delta else None)
-            if piece:
-                parts.append(piece)
-                yield piece
+        try:
+            for event in response:
+                if not event.choices:
+                    continue
+                delta = event.choices[0].delta
+                # delta is a Pydantic model (ChoiceDelta), NOT a plain dict —
+                # always use attribute access, never .get()
+                piece = getattr(delta, "content", None)
+                if piece:
+                    parts.append(piece)
+                    yield piece
+        except Exception as exc:  # dropped connection mid-stream
+            piece = f"\n\n[Stream interrupted: {exc}]"
+            parts.append(piece)
+            yield piece
         self.history.append({"role": "user", "content": user_message})
         self.history.append({"role": "assistant", "content": "".join(parts)})
 
@@ -187,12 +191,12 @@ class ChatBot:
         """Retrieve relevant chunks and format them as prompt context."""
         results = self.kb.search(user_message, top_k=TOP_K)
         if not results:
-            return "(No documents loaded yet, or nothing relevant found.)"
+            return ""
         blocks = []
         for idx, (source, text, _score) in enumerate(results, start=1):
             snippet = text if len(text) <= 1800 else text[:1800] + " …"
             blocks.append(f"[Excerpt {idx} | Source: {source}]\n{snippet}")
-        return "Relevant excerpts from your documents:\n\n" + "\n\n".join(blocks)
+        return "Relevant excerpts from your documents:\n\n" + "\n\n".join(blocks) + "\n\n"
 
 
 def _content_text(content) -> str:

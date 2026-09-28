@@ -11,6 +11,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip() or ""
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "").strip() or "https://api.openai.com/v1"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "").strip() or "gpt-4o-mini"
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small").strip()
+OPENAI_MAX_TOKENS = int(os.getenv("OPENAI_MAX_TOKENS", "700"))
 
 # --- Document processing -----------------------------------------------------
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "900"))          # chars per chunk
@@ -37,6 +38,11 @@ SUPPORTED_EXTENSIONS = {
     ".gif",
     ".webp",
 }
+
+# Loading images at startup burns API tokens for zero benefit — they're a
+# user-driven upload feature. CLI/web startup only loads these when the user
+# passes explicit paths.
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 # Friendly name of the assistant, used in the system prompt and UI.
 ASSISTANT_NAME = os.getenv("ASSISTANT_NAME", "Nova").strip()

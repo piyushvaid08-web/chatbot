@@ -23,6 +23,16 @@ MAX_HISTORY = int(os.getenv("MAX_HISTORY", "20"))         # turns of chat memory
 DATA_DIR = os.getenv("DATA_DIR", "data").strip()
 UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
 
+# Serverless platforms (Vercel etc.) have a read-only app filesystem; only
+# /tmp is writable. Fall back so uploads don't crash the deployment.
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except OSError:
+    import tempfile
+
+    UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "nova-uploads")
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 SUPPORTED_EXTENSIONS = {
     ".xls",
     ".xlsx",
